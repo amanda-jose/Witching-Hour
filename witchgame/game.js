@@ -8,7 +8,11 @@ const degree = Math.PI/180; //need to convert to radian because ctx.rotate(angle
 
 // load pixel art
 const pixelArt = new Image();
+const topPipe = new Image();
+const bottomPipe = new Image()
 pixelArt.src = "img/witchgameart.png";
+topPipe.src = "img/toppipe.png";
+bottomPipe.src = "img/bottompipe.png"
 
 // game state
 const state = {
@@ -19,36 +23,72 @@ const state = {
 }
 //start button
 const startBtn = {
-    x: 792,
-    y: 861,
-    w: 363,
-    h: 159
+    x: 361,
+    y: 345,
+    w: 124,
+    h: 55
 }
+// global variables needed!! that's why it didn't work because i tried to access variables inside of another function!!
+let cx = {};
+let cy = {};
 
 // control states
 cvs.addEventListener("click", (e) => {
+    // const startBtn = {
+    //     x: 792,
+    //     y: 861,
+    //     w: 363,
+    //     h: 159
+    // }
+    const startBtn = {
+        x: 361,
+        y: 345,
+        w: 124,
+        h: 55
+    }
+
     switch(state.current){
         case state.getReady:
             state.current = state.game; 
-            break;
+        break;
         case state.game:
             witch.fly();
-            break;
+        break;
         case state.over:
-        let rect = cvs.getBoundingClientRect(); //keeps track of coordinate changes if the user scrolls and the canvas moves
-        let clickX = e.clientX - rect.left; //rect takes off what's added when you scroll right or down the page
-        let clickY = e.clientY - rect.top;
 
-        //check if user actually clicks on start button
-        if (clickX >= startBtn.x && clickX <= startBtn.x + startBtn.w && clickY >= startBtn.y && clickY <= startBtn.y + startBtn.h){
+        getMousePosition = (canvas, e) => { 
+            let rect = canvas.getBoundingClientRect(); // //keeps track of coordinate changes if the user scrolls and the canvas moves
+            cx = e.clientX - rect.left; //rect takes off what's added when you scroll right or down the page
+            cy = e.clientY - rect.top; 
+            console.log("Coordinate x: " + cx,  
+                        "Coordinate y: " + cy); 
+        } 
+      
+        let canvasElem = document.querySelector("canvas"); 
+          
+        canvasElem.addEventListener("mousedown", (e) => { 
+            getMousePosition(canvasElem, e); 
+        }); 
+
+
+            //startBtn.x + startBtn.w = x coordinate of the other point of the start rectangle
+            // check if user actually clicks on start button
+        if (cx >= startBtn.x && cx <= startBtn.x + startBtn.w && cy >= startBtn.y && cy <= startBtn.y + startBtn.h){
             witch.speedReset();
             pipes.reset();
             score.reset();
             state.current = state.getReady;
+            console.log('click')
+
         }
-            break;
+
+        break;
     }
 })
+
+// cvs.addEventListener("mouseover",(e) => {
+//     console.log(e)
+// })
 
 //background
 const bg = {
@@ -74,8 +114,8 @@ const fg = {
     sH: 511,
     x: 0,
     y: 665,
-    w: cvs.width,
-    h: 200,
+    w: 1000,
+    h: 215,
     dx: 2,
 
     draw() {
@@ -84,7 +124,7 @@ const fg = {
 
     update(){
         if ( state.current === state.game) {
-            this.x = (this.x - this.dx) % (this.w);
+            this.x = (this.x - this.dx) % (this.w / 2); // ** need to fix this to make foregroud run smoothly 
         }
     }
 }
@@ -99,12 +139,12 @@ const witch = {
     ],
     sW: 332,
     sH: 210,
-    x: 40,
-    y: 150,
+    x: 100,
+    y: 200,
     w: 130,
     h: 90,
 
-    radius: 151.5,
+    radius: 30,//151.5,
 
     frame: 0,
 
@@ -117,13 +157,13 @@ const witch = {
 
         let witch = this.animation[this.frame];
 
-        ctx.save();
-        ctx.translate(this.x, this.y);
+        ctx.save(); // saving the old state of the canvas before rotating the witch
+        ctx.translate(this.x, this.y); //moves the canvas to the witch coordinates 
         ctx.rotate(this.rotation);
 
-        ctx.drawImage(pixelArt, witch.sX, witch.sY, this.sW, this.sH, this.x, this.y, this.w, this.h);
+        ctx.drawImage(pixelArt, witch.sX, witch.sY, this.sW, this.sH, - this.w/2, - this.h/2, this.w, this.h); // ** -this.w/2 to prevent witch from falling backwards
 
-        ctx.restore();
+        ctx.restore(); //restoring canvas back to its original position 
     },
 
     fly(){
@@ -151,10 +191,10 @@ const witch = {
             }
 
             if(this.speed >= this.jump){  //if speed > jump, then witch = falling
-                this.rotation = 90 * degree;
+                this.rotation = 20 * degree;
                 this.frame = 1;
             } else {
-                this.rotation = -25 * degree;
+                this.rotation = -10 * degree;
             }
         }
     },
@@ -168,13 +208,13 @@ const witch = {
 const pipes = {
     position: [], //x and y position
 
-    top: {
-        sX: 1587,
-        sy: 0
+    bottom: {
+        sX: 0, //1356,
+        sY: 0
     },
 
-    bottom: {
-        sX: 1356,
+    top: {
+        sX: 0,
         sY: 0
     },
 
@@ -182,23 +222,32 @@ const pipes = {
     sH: 1830,
     w: 65,
     h: 500, 
-    gap: 300,
-    maxYPos: -150,
+    gap: 250,
+    maxYPos: -500,
     dx: 2,
+    bph: 700, //bottom pipe height
 
     draw(){
+
+        // let topYPos = -200 // * changing variable 
+        // let bottomYPos = 600 + this.gap
+        
+
+
         for(let i = 0; i < this.position.length; i++){
-            let p = this.position[i];
+             let p = this.position[i];
 
-            // ensures that pipes are always aligned
-            let topYPos = p.y;
-            let bottomYPos = p.y + this.h + this.gap
+        //     // ensures that pipes are always aligned
+        //     let topYPos = p.y
+        //     let bottomYPos = p.y + this.gap
+            let topYPos = p.y // * changing variable 
+            let bottomYPos = p.y + this.gap + this.h
 
-            //top pipe
-            ctx.drawImage(pixelArt, this.top.sX, this.top.sY, this.sW, this.sH, p.x, topYPos, this.w, this.h);
+        //     //top pipe
+            ctx.drawImage(topPipe, this.top.sX, this.top.sY, this.sW, this.sH, p.x, topYPos, this.w, this.h);
 
-            //bottom pipe
-            ctx.drawImage(pixelArt, this.bottom.sX, this.bottom.sY, this.sW, this.sH, p.x, bottomYPos, this.w, this.h);
+        //     //bottom pipe
+            ctx.drawImage(bottomPipe, this.bottom.sX, this.bottom.sY, this.sW, this.sH, p.x, bottomYPos, this.w, this.bph);
 
         }
         
@@ -207,32 +256,39 @@ const pipes = {
     update(){
         if ( state.current !== state.game) return;
 
-        if (frames%100 == 0){ // initial position for pipes and creation of new pipes
+        if (frames%200 == 0){ // initial position for pipes and creation of new pipes
             this.position.push({
                 x: cvs.width,
-                y: this.maxYPos * (Math.random() + 1)
+                y: this.maxYPos * Math.random()
+
             });
         }
 
-        for (let i = 0; i < this.position.length; i++){ // moving pipes 
-            let p = this.position[i];
+         for (let i = 0; i < this.position.length; i++){ // moving pipes 
+             let p = this.position[i];
 
-            let bottomPipeYPos = p.y + this.h + this.gap;
+            // let bottomPipeYPos = p.y + this.h + this.gap;
+            let bottomYPos = p.y + this.gap + this.h // this needs to be stated again in here because previously it was not stated as a global variable 
 
-            //collision detection
-            //top pipe
-            if (witch.x + witch.radius > p.x && witch.x - witch.radius < p.x + this.w && witch.y + witch.radius > p.y && witch.y - witch.radius < p.y + this.h){
+
+        //     //collision detection
+        //     //top pipe
+            if (witch.x + witch.radius > p.x && witch.x - witch.radius < p.x + this.w && witch.y + witch.radius > p.y && witch.y - witch.radius < p.y + this.h){ // p.y is not referring to the bottom tip of the top pipe 
                 state.current = state.over;
             }
-            //bottom pipe
-            if (witch.x + witch.radius > p.x && witch.x - witch.radius < p.x + this.w && witch.y + witch.radius > bottomPipeYPos && witch.y - witch.radius < bottomPipeYPos + this.h){
+
+            // if (witch.x + witch.radius > p.x + 80 && witch.x - witch.radius < p.x + this.w && witch.y + witch.radius > p.y && witch.y - witch.radius < p.y + this.h){
+            //     state.current = state.over;
+            // }
+        //     //bottom pipe
+            if (witch.x + witch.radius > p.x && witch.x - witch.radius < p.x + this.w && witch.y + witch.radius > bottomYPos && witch.y - witch.radius < bottomYPos + this.h){
                 state.current = state.over;
             }
 
-            //move pipes to left
-            p.x -= this.dx;
+        //     //move pipes to left
+             p.x -= this.dx; 
 
-            // when pipes go beyond canvas on the left, delete from array
+        //     // when pipes go beyond canvas on the left, delete from array
             if (p.x + this.w <= 0){
                 this.position.shift(); //delete
                 score.value += 1;
