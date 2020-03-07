@@ -1,4 +1,4 @@
-// select canvas
+// select canvas sfsdfs
 const cvs = document.getElementById("witch");
 const ctx = cvs.getContext("2d");
 
